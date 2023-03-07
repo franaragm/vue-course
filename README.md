@@ -234,6 +234,287 @@ const seen = ref(true)
 
 </template>
 ```
+  
+# Reactividad  
+
+## Declarando el Estado Reactivo
+Podemos crear un objeto o array reactivo con la función reactive():
+
+```js
+import { reactive } from 'vue
+const state = reactive({ count: 0 })
+```
 
 
+Los objetos reactivos son proxies de JavaScript y se comportan igual que los objetos normales. La diferencia es que Vue es capaz de rastrear el acceso a las propiedades y las mutaciones de un objeto reactivo.
+
+
+```js
+<script setup>
+import { reactive } from 'vue'
+
+const state = reactive({ count: 0 })
+
+function increment() {
+  state.count++
+}
+</script>
+
+<template>
+  <button @click="increment">
+    {{ state.count }}
+  </button>
+</template>
+```  
+
+## Tiempo de actualización del DOM
+Cuando se muta el estado reactivo, el DOM se actualiza automáticamente. Sin embargo, debe tenerse en cuenta que las actualizaciones del DOM no se aplican de forma sincrónica. En su lugar, Vue las almacena hasta el "siguiente tick" en el ciclo de actualización para asegurar que cada componente se actualiza sólo una vez sin importar cuántos cambios de estado hayas hecho.
+
+Para esperar a que se complete la actualización del DOM después de un cambio de estado, puedes utilizar la API global nextTick():
+
+```js
+<script setup>
+import { reactive, nextTick } from 'vue'
+
+const state = reactive({ count: 0 })
+
+function increment() {
+  state.count++
+  nextTick(() => {
+    console.log(state.count)
+  })
+}
+
+</script>
+
+<template>
+  <button @click="increment">
+    {{ state.count }}
+  </button>
+</template>
+```
+  
+  
+## Reactividad Profunda
+En Vue, el estado es “profundamente" reactivo por defecto. Esto significa que puedes esperar que los cambios sean detectados incluso cuando mutes objetos anidados o arrays:
+## Deep Reactivity
+
+```js
+<script setup>
+import { reactive } from 'vue'
+
+const obj = reactive({
+  nested: { count: 0 },
+  arr: ['foo', 'bar']
+})
+
+function mutateDeeply() {
+  obj.nested.count++
+  obj.arr.push('baz')
+}
+
+</script>
+
+<template>
+  <button @click="mutateDeeply">
+    Cambiar
+  </button>
+  <div>
+    {{obj.nested.count}}
+  </div>
+  <div>
+    {{obj.arr}}
+  </div>
+</template>
+```
+  
+  
+  
+  
+It is also possible to explicitly create shallow reactive objects where the reactivity is only tracked at the root-level, but these are typically only needed in advanced use cases.
+
+Reactive Proxy vs. Original#
+It is important to note that the returned value from reactive() is a Proxy of the original object, which is not equal to the original object:
+
+js
+const raw = {}
+const proxy = reactive(raw)
+
+// proxy is NOT equal to the original.
+console.log(proxy === raw) // false
+Only the proxy is reactive - mutating the original object will not trigger updates. Therefore, the best practice when working with Vue's reactivity system is to exclusively use the proxied versions of your state.
+
+To ensure consistent access to the proxy, calling reactive() on the same object always returns the same proxy, and calling reactive() on an existing proxy also returns that same proxy:
+
+js
+// calling reactive() on the same object returns the same proxy
+console.log(reactive(raw) === proxy) // true
+
+// calling reactive() on a proxy returns itself
+console.log(reactive(proxy) === proxy) // true
+This rule applies to nested objects as well. Due to deep reactivity, nested objects inside a reactive object are also proxies:
+
+js
+const proxy = reactive({})
+
+const raw = {}
+proxy.nested = raw
+
+console.log(proxy.nested === raw) // false
+Limitations of reactive()#
+The reactive() API has two limitations:
+
+It only works for object types (objects, arrays, and collection types such as Map and Set). It cannot hold primitive types such as string, number or boolean.
+
+Since Vue's reactivity tracking works over property access, we must always keep the same reference to the reactive object. This means we can't easily "replace" a reactive object because the reactivity connection to the first reference is lost:
+
+js
+let state = reactive({ count: 0 })
+
+// the above reference ({ count: 0 }) is no longer being tracked (reactivity connection is lost!)
+state = reactive({ count: 1 })
+It also means that when we assign or destructure a reactive object's property into local variables, or when we pass that property into a function, we will lose the reactivity connection:
+
+js
+const state = reactive({ count: 0 })
+
+// n is a local variable that is disconnected
+// from state.count.
+let n = state.count
+// does not affect original state
+n++
+
+// count is also disconnected from state.count.
+let { count } = state
+// does not affect original state
+count++
+
+// the function receives a plain number and
+// won't be able to track changes to state.count
+callSomeFunction(state.count)
+Reactive Variables with ref()#
+To address the limitations of reactive(), Vue also provides a ref() function which allows us to create reactive "refs" that can hold any value type:
+
+js
+import { ref } from 'vue'
+
+const count = ref(0)
+ref() takes the argument and returns it wrapped within a ref object with a .value property:
+
+js
+const count = ref(0)
+
+console.log(count) // { value: 0 }
+console.log(count.value) // 0
+
+count.value++
+console.log(count.value) // 1
+See also: Typing Refs 
+
+Similar to properties on a reactive object, the .value property of a ref is reactive. In addition, when holding object types, ref automatically converts its .value with reactive().
+
+A ref containing an object value can reactively replace the entire object:
+
+js
+const objectRef = ref({ count: 0 })
+
+// this works reactively
+objectRef.value = { count: 1 }
+Refs can also be passed into functions or destructured from plain objects without losing reactivity:
+
+js
+const obj = {
+  foo: ref(1),
+  bar: ref(2)
+}
+
+// the function receives a ref
+// it needs to access the value via .value but it
+// will retain the reactivity connection
+callSomeFunction(obj.foo)
+
+// still reactive
+const { foo, bar } = obj
+In other words, ref() allows us to create a "reference" to any value and pass it around without losing reactivity. This capability is quite important as it is frequently used when extracting logic into Composable Functions.
+
+Ref Unwrapping in Templates#
+When refs are accessed as top-level properties in the template, they are automatically "unwrapped" so there is no need to use .value. Here's the previous counter example, using ref() instead:
+
+vue
+<script setup>
+import { ref } from 'vue'
+
+const count = ref(0)
+
+function increment() {
+  count.value++
+}
+</script>
+
+<template>
+  <button @click="increment">
+    {{ count }} <!-- no .value needed -->
+  </button>
+</template>
+Try it in the Playground
+
+Note that the unwrapping only applies if the ref is a top-level property on the template render context. As an example, object is a top-level property, but object.foo is not.
+
+So, given the following object:
+
+js
+const object = { foo: ref(1) }
+The following expression will NOT work as expected:
+
+template
+{{ object.foo + 1 }}
+The rendered result will be [object Object]1 because object.foo is a ref object. We can fix that by making foo a top-level property:
+
+js
+const { foo } = object
+template
+{{ foo + 1 }}
+Now the render result will be 2.
+
+One thing to note is that a ref will also be unwrapped if it is the final evaluated value of a text interpolation (i.e. a {{ }} tag), so the following will render 1:
+
+template
+{{ object.foo }}
+This is just a convenience feature of text interpolation and is equivalent to {{ object.foo.value }}.
+
+Ref Unwrapping in Reactive Objects#
+When a ref is accessed or mutated as a property of a reactive object, it is also automatically unwrapped so it behaves like a normal property:
+
+js
+const count = ref(0)
+const state = reactive({
+  count
+})
+
+console.log(state.count) // 0
+
+state.count = 1
+console.log(count.value) // 1
+If a new ref is assigned to a property linked to an existing ref, it will replace the old ref:
+
+js
+const otherCount = ref(2)
+
+state.count = otherCount
+console.log(state.count) // 2
+// original ref is now disconnected from state.count
+console.log(count.value) // 1
+Ref unwrapping only happens when nested inside a deep reactive object. It does not apply when it is accessed as a property of a shallow reactive object.
+
+Ref Unwrapping in Arrays and Collections#
+Unlike reactive objects, there is no unwrapping performed when the ref is accessed as an element of a reactive array or a native collection type like Map:
+
+js
+const books = reactive([ref('Vue 3 Guide')])
+// need .value here
+console.log(books[0].value)
+
+const map = reactive(new Map([['count', ref(0)]]))
+// need .value here
+console.log(map.get('count').value) Traducido con www.DeepL.com/Translator (versión gratuita)
 
