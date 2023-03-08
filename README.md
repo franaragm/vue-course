@@ -139,8 +139,7 @@ const lastName = "James"
 
 
 </template>
-
-```js
+```
 
 La etiqueta mustache se sustituirá por el valor de las propiedades de la instancia del componente correspondiente. También se actualizará cada vez que cambie la propiedad msg (Reactividad)
 
@@ -297,7 +296,6 @@ function increment() {
   
 ## Reactividad Profunda
 En Vue, el estado es “profundamente" reactivo por defecto. Esto significa que puedes esperar que los cambios sean detectados incluso cuando mutes objetos anidados o arrays:
-## Deep Reactivity
 
 ```js
 <script setup>
@@ -328,54 +326,60 @@ function mutateDeeply() {
 </template>
 ```
   
-  
-  
-  
-It is also possible to explicitly create shallow reactive objects where the reactivity is only tracked at the root-level, but these are typically only needed in advanced use cases.
+También es posible crear explícitamente objetos reactivos superficiales en los que la reactividad sólo se rastrea en el nivel raíz, pero normalmente sólo se necesitan en casos de uso avanzados.
 
-Reactive Proxy vs. Original#
-It is important to note that the returned value from reactive() is a Proxy of the original object, which is not equal to the original object:
+### Reactive Proxy vs. Original
+Es importante tener en cuenta que el valor devuelto por reactive() es un Proxy del objeto original, que no es igual al objeto original:
 
-js
+```js
 const raw = {}
 const proxy = reactive(raw)
 
-// proxy is NOT equal to the original.
+// proxy NO es igual al original.
 console.log(proxy === raw) // false
-Only the proxy is reactive - mutating the original object will not trigger updates. Therefore, the best practice when working with Vue's reactivity system is to exclusively use the proxied versions of your state.
+```
 
-To ensure consistent access to the proxy, calling reactive() on the same object always returns the same proxy, and calling reactive() on an existing proxy also returns that same proxy:
+Sólo el proxy es reactivo - mutar el objeto original no desencadenará actualizaciones. Por lo tanto, la mejor práctica cuando se trabaja con el sistema de reactividad de Vue es utilizar exclusivamente las versiones proxy de su estado.
 
-js
+Para asegurar un acceso consistente al proxy, llamar a reactive() sobre el mismo objeto siempre devuelve el mismo proxy, y llamar a reactive() sobre un proxy existente también devuelve ese mismo proxy:
+
+```js
 // calling reactive() on the same object returns the same proxy
 console.log(reactive(raw) === proxy) // true
 
 // calling reactive() on a proxy returns itself
 console.log(reactive(proxy) === proxy) // true
-This rule applies to nested objects as well. Due to deep reactivity, nested objects inside a reactive object are also proxies:
+```
 
-js
+Esta regla se aplica también a los objetos anidados. Debido a la reactividad profunda, los objetos anidados dentro de un objeto reactivo también son proxies:
+
+```js
 const proxy = reactive({})
 
 const raw = {}
 proxy.nested = raw
 
 console.log(proxy.nested === raw) // false
-Limitations of reactive()#
-The reactive() API has two limitations:
+```  
+  
+### Limitaciones de reactive()
+La API reactive() tiene dos limitaciones:
 
-It only works for object types (objects, arrays, and collection types such as Map and Set). It cannot hold primitive types such as string, number or boolean.
+Sólo funciona para tipos de objeto (objetos, matrices y tipos de colección como Map y Set). No puede manejar tipos primitivos como string, number o boolean.
 
+Dado que el seguimiento de la reactividad de Vue funciona sobre el acceso a propiedades, debemos mantener siempre la misma referencia al objeto reactivo. Esto significa que no podemos "reemplazar" fácilmente un objeto reactivo porque se pierde la conexión de reactividad con la primera referencia:
 Since Vue's reactivity tracking works over property access, we must always keep the same reference to the reactive object. This means we can't easily "replace" a reactive object because the reactivity connection to the first reference is lost:
 
-js
+```js
 let state = reactive({ count: 0 })
 
-// the above reference ({ count: 0 }) is no longer being tracked (reactivity connection is lost!)
+// la referencia anterior ({ count: 0 }) ya no se rastrea (¡se ha perdido la conexión de reactividad!)
 state = reactive({ count: 1 })
-It also means that when we assign or destructure a reactive object's property into local variables, or when we pass that property into a function, we will lose the reactivity connection:
+```  
 
-js
+También significa que cuando asignemos o desestructuremos una propiedad de un objeto reactivo en variables locales, o cuando pasemos esa propiedad a una función, perderemos la conexión de reactividad:
+
+```js
 const state = reactive({ count: 0 })
 
 // n is a local variable that is disconnected
@@ -392,16 +396,20 @@ count++
 // the function receives a plain number and
 // won't be able to track changes to state.count
 callSomeFunction(state.count)
-Reactive Variables with ref()#
-To address the limitations of reactive(), Vue also provides a ref() function which allows us to create reactive "refs" that can hold any value type:
+```  
 
-js
+### Reactive Variables with ref()
+Para hacer frente a las limitaciones de reactive(), Vue también proporciona una función ref() que nos permite crear "refs" reactivas que pueden contener cualquier tipo de valor:
+
+```js
 import { ref } from 'vue'
 
 const count = ref(0)
-ref() takes the argument and returns it wrapped within a ref object with a .value property:
+```  
 
-js
+ref() toma el argumento y lo devuelve envuelto dentro de un objeto ref con una propiedad .value:
+
+```js
 const count = ref(0)
 
 console.log(count) // { value: 0 }
@@ -409,38 +417,42 @@ console.log(count.value) // 0
 
 count.value++
 console.log(count.value) // 1
-See also: Typing Refs 
+```
 
-Similar to properties on a reactive object, the .value property of a ref is reactive. In addition, when holding object types, ref automatically converts its .value with reactive().
+Al igual que las propiedades de un objeto reactivo, la propiedad .value de una ref es reactiva. Además, cuando contiene tipos de objeto, ref convierte automáticamente su .value con reactive().
 
-A ref containing an object value can reactively replace the entire object:
+Una ref que contenga un valor de objeto puede sustituir reactivamente al objeto completo:
 
-js
+```js
 const objectRef = ref({ count: 0 })
 
-// this works reactively
+// esto funciona de forma reactiva
 objectRef.value = { count: 1 }
-Refs can also be passed into functions or destructured from plain objects without losing reactivity:
+```
+  
+Las referencias también pueden pasarse a funciones o desestructurarse a partir de objetos planos sin perder reactividad:
 
-js
+```js
 const obj = {
   foo: ref(1),
   bar: ref(2)
 }
 
-// the function receives a ref
-// it needs to access the value via .value but it
-// will retain the reactivity connection
+// la función recibe una ref
+// necesita acceder al valor a través de .value pero
+// conservará la conexión de reactividad
 callSomeFunction(obj.foo)
 
-// still reactive
+// todavía reactivo
 const { foo, bar } = obj
-In other words, ref() allows us to create a "reference" to any value and pass it around without losing reactivity. This capability is quite important as it is frequently used when extracting logic into Composable Functions.
+```  
 
-Ref Unwrapping in Templates#
-When refs are accessed as top-level properties in the template, they are automatically "unwrapped" so there is no need to use .value. Here's the previous counter example, using ref() instead:
+En otras palabras, ref() nos permite crear una "referencia" a cualquier valor y pasarla sin perder reactividad. Esta capacidad es bastante importante, ya que se utiliza con frecuencia cuando se extrae la lógica en Composable Functions.
 
-vue
+## Ref Unwrapping en plantillas
+Cuando se accede a las refs como propiedades de nivel superior en la plantilla, se "desenvuelven" automáticamente, por lo que no es necesario utilizar .value. Aquí está el ejemplo del contador anterior, utilizando ref() en su lugar:
+
+```vue
 <script setup>
 import { ref } from 'vue'
 
@@ -456,36 +468,44 @@ function increment() {
     {{ count }} <!-- no .value needed -->
   </button>
 </template>
-Try it in the Playground
+```
 
-Note that the unwrapping only applies if the ref is a top-level property on the template render context. As an example, object is a top-level property, but object.foo is not.
+Ten en cuenta que el "desenvolvimiento" sólo se aplica si la referencia es una propiedad de nivel superior en el contexto de representación de la plantilla. Por ejemplo, object es una propiedad de nivel superior, pero object.foo no lo es.
 
-So, given the following object:
+Por lo tanto, dado el siguiente objeto:
 
-js
+```js
 const object = { foo: ref(1) }
+```  
+
 The following expression will NOT work as expected:
 
-template
+```js
 {{ object.foo + 1 }}
-The rendered result will be [object Object]1 because object.foo is a ref object. We can fix that by making foo a top-level property:
+```
+ 
+El resultado renderizado será [objet Object] porque object.foo es un objeto ref. Podemos solucionarlo haciendo que foo sea una propiedad de nivel superior:
 
-js
+```js
 const { foo } = object
-template
+
 {{ foo + 1 }}
-Now the render result will be 2.
+``` 
+  
+Ahora el resultado del renderizado será 2.
 
-One thing to note is that a ref will also be unwrapped if it is the final evaluated value of a text interpolation (i.e. a {{ }} tag), so the following will render 1:
+Una cosa a tener en cuenta es que una referencia también se desenvolverá si es el valor final evaluado de una interpolación de texto (es decir, una etiqueta {{ }}), por lo que lo siguiente se representará 1:
 
-template
+```js
 {{ object.foo }}
-This is just a convenience feature of text interpolation and is equivalent to {{ object.foo.value }}.
+```  
 
-Ref Unwrapping in Reactive Objects#
-When a ref is accessed or mutated as a property of a reactive object, it is also automatically unwrapped so it behaves like a normal property:
+Esto es sólo una característica de conveniencia de la interpolación de texto y es equivalente a {{ object.foo.value }}.
 
-js
+## Ref Unwrapping en Objetos Reactivos
+Cuando se accede a una referencia o se muta como una propiedad de un objeto reactivo, también se desenvuelve automáticamente para que se comporte como una propiedad normal:
+
+```js
 const count = ref(0)
 const state = reactive({
   count
@@ -495,26 +515,30 @@ console.log(state.count) // 0
 
 state.count = 1
 console.log(count.value) // 1
-If a new ref is assigned to a property linked to an existing ref, it will replace the old ref:
+``` 
+  
+Si se asigna una nueva referencia a una propiedad vinculada a una referencia existente, ésta sustituirá a la anterior:
 
-js
+```js
 const otherCount = ref(2)
 
 state.count = otherCount
 console.log(state.count) // 2
 // original ref is now disconnected from state.count
 console.log(count.value) // 1
+```  
+  
 Ref unwrapping only happens when nested inside a deep reactive object. It does not apply when it is accessed as a property of a shallow reactive object.
 
-Ref Unwrapping in Arrays and Collections#
-Unlike reactive objects, there is no unwrapping performed when the ref is accessed as an element of a reactive array or a native collection type like Map:
+## Ref Unwrapping en Arrays y Colecciones
+A diferencia de los objetos reactivos, no se realiza ningún desenvolvimiento cuando se accede a la referencia como elemento de una matriz reactiva o de un tipo de colección nativa como Map:
 
-js
+```js
 const books = reactive([ref('Vue 3 Guide')])
-// need .value here
+// necesita .value aquí
 console.log(books[0].value)
 
 const map = reactive(new Map([['count', ref(0)]]))
-// need .value here
-console.log(map.get('count').value) Traducido con www.DeepL.com/Translator (versión gratuita)
-
+necesita .value aquí
+console.log(map.get('count').value)
+```
