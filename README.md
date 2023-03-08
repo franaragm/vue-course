@@ -1447,6 +1447,24 @@ Ten en cuenta que esto no significa que la llamada deba colocarse léxicamente d
 
 A continuación se muestra un diagrama del ciclo de vida de la instancia. No es necesario que entienda todo lo que está sucediendo en este momento, pero a medida que aprenda y construya más, será una referencia útil.
 
-![Ciclo de vida](https://i.imgur.com/XLvznbh.png)
+![Ciclo de vida](https://dltqhkoxgn1gx.cloudfront.net/img/posts/how-to-use-lifecycle-hooks-in-vue3-1.png)
+
+Esencialmente, cada evento principal del ciclo de vida de Vue está separado en dos hooks que son llamados justo antes de ese evento y justo después. Hay cuatro eventos principales (8 hooks principales) que puedes utilizar en tu aplicación Vue.
   
+Creation - se ejecuta cuando se crea el componente
+Mounting - se ejecuta cuando se monta el DOM
+Updates - se ejecuta cuando se modifican los datos reactivos
+Destruction - se ejecuta justo antes de que tu elemento sea destruido.
+
+Excluyendo beforeCreate y created (que son reemplazados por el propio método setup), hay 9 de los hooks del ciclo de vida de la API de Options a los que podemos acceder en nuestro método setup:
   
+- onBeforeMount - llamado antes de que comience el montaje
+- onMounted - llamado cuando el componente está montado
+- onBeforeUpdate - Llamado cuando los datos reactivos cambian y antes de re renderizar
+- onUpdated - Llamado después de re-renderizar
+- onBeforeUnmount - Llamado antes de que la instancia Vue sea destruida
+- onUnmounted - Llamado después de que la instancia es destruida
+- onActivated - Llamado cuando un componente mantenido vivo es activado
+- onDeactivated - Llamado cuando un componente mantenido vivo es desactivado
+- onErrorCaptured - se llama cuando se captura un error de un componente hijo
+
