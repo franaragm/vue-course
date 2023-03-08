@@ -655,3 +655,527 @@ Ahora, cuando se ejecuta fullName.value = 'John Doe', se invocará el setter y f
 Los getter deben ser libres de efectos secundarios. Es importante recordar que las funciones getter de las propiedades calculadas deben realizar solo cálculos puros y estar libres de efectos secundarios. Por ejemplo, ¡no realices solicitudes asincrónicas o mutaciones en el DOM dentro de un getter de una propiedad calculada! Piensa en una propiedad calculada como describir declarativamente cómo derivar un valor basado en otros valores; su única responsabilidad debe ser calcular y devolver ese valor. Más adelante en la guía, discutiremos cómo podemos realizar efectos secundarios en respuesta a los cambios de estado con los watchers.
 
 Evita mutar el valor devuelto por una propiedad calculada. El valor devuelto por una propiedad calculada es un estado derivado. Piensa en él como una instantánea temporal: cada vez que cambia el estado de origen, se crea una nueva instantánea. No tiene sentido mutar una instantánea, por lo que el valor devuelto por una propiedad calculada debe tratarse como de solo lectura y nunca debe mutarse; en su lugar, actualiza el estado de origen en el que depende para desencadenar nuevas operaciones de cálculo.
+  
+  
+# Propiedades de Clase y style bindings
+  
+Una necesidad común para la vinculación de datos es manipular la lista de clases y los estilos en línea de un elemento. Dado que class y style son ambos atributos, podemos utilizar v-bind para asignarles un valor de cadena dinámicamente, al igual que con otros atributos. Sin embargo, tratar de generar esos valores mediante la concatenación de cadenas puede ser tedioso y propenso a errores. Por esta razón, Vue proporciona mejoras especiales cuando se utiliza v-bind con class y style. Además de las cadenas, las expresiones también pueden evaluar objetos o matrices.
+
+## Vinculación de clases HTML
+Podemos pasar un objeto a :class (abreviatura de v-bind:class) para alternar dinámicamente las clases:
+
+```vue
+<template>
+  <div :class="{ active: isActive }"></div>
+</template>
+```
+
+La sintaxis anterior significa que la presencia de la clase active será determinada por la veracidad de la propiedad de datos isActive.
+
+Puedes tener varias clases alternadas teniendo más campos en el objeto. Además, la directiva :class también puede coexistir con el atributo de clase normal. Por lo tanto, dado el siguiente estado:
+
+```js
+const isActive = ref(true)
+const hasError = ref(false)
+```  
+
+Y la siguiente plantilla:
+
+```vue
+<template>
+  <div
+    class="static"
+    :class="{ active: isActive, 'text-danger': hasError }"
+  ></div>
+</template>
+```
+
+Se renderizará:
+
+```html
+<div class="static active"></div>
+```
+
+Cuando isActive o hasError cambia, la lista de clases se actualizará en consecuencia. Por ejemplo, si hasError se vuelve true, la lista de clases se convertirá en "static active text-danger".
+
+El objeto vinculado no tiene que ser en línea:
+
+```js
+const classObject = reactive({
+  active: true,
+  'text-danger': false
+})
+```
+
+```vue
+<template>
+  <div :class="classObject"></div>
+</template>
+```
+
+Esto renderizará el mismo resultado. También podemos vincular a una propiedad calculada que devuelve un objeto. Este es un patrón común y poderoso:
+
+```js
+const isActive = ref(true)
+const error = ref(null)
+
+const classObject = computed(() => ({
+  active: isActive.value && !error.value,
+  'text-danger': error.value && error.value.type === 'fatal'
+}))
+```  
+
+```vue
+<template>
+  <div :class="classObject"></div>
+</template>
+```
+
+## Vinculación de matrices
+Podemos vincular :class a una matriz para aplicar una lista de clases:
+
+```js
+const activeClass = ref('active')
+const errorClass = ref('text-danger')
+```
+
+```vue
+<template>
+  <div :class="[activeClass, errorClass]"></div>
+</template>
+```  
+
+Lo que renderizará:
+
+```html
+<div class="active text-danger"></div>
+```
+
+Si también deseas alternar una clase en la lista condicionalmente, puedes hacerlo con una expresión ternaria:
+
+```vue
+<template>
+  <div :class="[isActive ? activeClass : '', errorClass]"></div>
+</template>
+```
+
+Esto siempre aplicará errorClass, pero activeClass solo se aplicará cuando isActive sea veraz.
+
+Sin embargo, esto puede ser un poco verboso si tienes múltiples clases condicionales. Es por eso que también es posible utilizar la sintaxis de objeto dentro de la sintaxis de matriz:
+
+```vue
+<template>
+  <div :class="[{ active: isActive }, errorClass]"></div>
+</template>
+```
+  
+## Con componentes
+Esta sección asume conocimiento de componentes. Siéntete libre de saltarla y regresar más tarde.
+
+Cuando utilizas el atributo class en un componente con un único elemento raíz, esas clases se agregarán al elemento raíz del componente y se fusionarán con cualquier clase existente que ya tenga.
+
+Por ejemplo, si tenemos un componente llamado MyComponent con la siguiente plantilla:
+
+```vue
+<template>
+  <!-- plantilla del componente hijo -->
+  <p class="foo bar">¡Hola!</p>
+</template>
+```
+
+Luego agregamos algunas clases al usarlo:
+
+```vue
+<template>
+  <!-- al usar el componente -->
+  <MyComponent class="baz boo" />
+</template>
+```
+
+El HTML renderizado será:
+
+```html
+<p class="foo bar baz boo">¡Hola!</p>
+```
+
+Lo mismo ocurre con las vinculaciones de clases:
+
+```vue
+<template>
+  <MyComponent :class="{ active: isActive }" />
+</template>
+```
+
+Cuando isActive es verdadero, el HTML renderizado será:
+
+```html
+<p class="foo bar active">¡Hola!</p>
+```
+
+Si tu componente tiene múltiples elementos raíz, deberás definir qué elemento recibirá esta clase. Puedes hacer esto utilizando la propiedad del componente $attrs:
+
+```vue
+<template>
+  <!-- plantilla de MyComponent usando $attrs -->
+  <p :class="$attrs.class">¡Hola!</p>
+  <span>Este es un componente hijo</span>
+</template>
+```
+  
+```vue
+<template>
+  <MyComponent class="baz" />
+</template>
+```
+
+Se renderizará:
+
+```html
+<p class="baz">¡Hola!</p>
+<span>Este es un componente hijo</span>
+```
+
+Puedes obtener más información sobre la herencia de atributos de componentes en la sección de atributos en cascada.
+
+## Vinculación de estilos en línea
+  3
+###Vinculación a objetos
+:style admite la vinculación a valores de objetos JavaScript, lo que corresponde a la propiedad de estilo de un elemento HTML:
+
+```js
+const activeColor = ref('red')
+const fontSize = ref(30)
+```
+  
+```vue
+<template>
+  <div :style="{ color: activeColor, fontSize: fontSize + 'px' }"></div>
+</template>
+```
+
+Aunque se recomiendan las claves camelCase, :style también admite claves de propiedad CSS con guiones en su nombre (correspondientes a cómo se utilizan en CSS real), por ejemplo:
+
+```vue
+<template>
+  <div :style="{ 'font-size': fontSize + 'px' }"></div>
+</template>
+```  
+
+A menudo es una buena idea vincular un objeto de estilo directamente para que la plantilla sea más limpia:
+
+```js
+const styleObject = reactive({
+  color: 'red',
+  fontSize: '13px'
+})
+```
+  
+```vue
+<template>
+  <div :style="styleObject"></div>
+</template>
+```
+
+Nuevamente, la vinculación de estilo de objeto se utiliza a menudo en conjunción con propiedades calculadas que devuelven objetos.
+
+### Vinculación a matrices
+  
+Podemos vincular :style a una matriz de varios objetos de estilo. Estos objetos se fusionarán y se aplicarán al mismo elemento:
+
+```vue
+<template>
+  <div :style="[baseStyles, overridingStyles]"></div>
+</template>
+```
+
+*** Auto-prefixado
+Cuando usas una propiedad CSS que requiere un prefijo de proveedor en :style, Vue automáticamente agregará el prefijo correspondiente. Vue lo hace comprobando en tiempo de ejecución qué propiedades de estilo son compatibles en el navegador actual. Si el navegador no admite una propiedad en particular, se probarán varias variantes con prefijos para tratar de encontrar una que sea compatible.
+
+Múltiples valores
+Puedes proporcionar una matriz de múltiples valores (con prefijo) a una propiedad de estilo, por ejemplo:
+
+```vue
+<template>
+  <div :style="{ display: ['-webkit-box', '-ms-flexbox', 'flex'] }"></div>
+</template>
+```
+  
+Esto solo renderizará el último valor en la matriz que el navegador admite. En este ejemplo, renderizará display: flex para los navegadores que admiten la versión sin prefijo de flexbox.
+
+# Renderizado de listas  
+
+## v-for
+Podemos usar la directiva v-for para renderizar una lista de elementos basada en un array. La directiva v-for requiere una sintaxis especial en forma de item in items, donde items es el array de datos fuente y item es un alias para el elemento del array que está siendo iterado:
+
+```js
+const items = ref([{ message: 'Foo' }, { message: 'Bar' }])
+```
+
+```html
+<li v-for="item in items">
+  {{ item.message }}
+</li>
+```  
+
+Dentro del alcance de v-for, las expresiones de plantilla tienen acceso a todas las propiedades del alcance padre. Además, v-for también admite un segundo alias opcional para el índice del elemento actual:
+
+```js
+const parentMessage = ref('Parent')
+const items = ref([{ message: 'Foo' }, { message: 'Bar' }])
+```
+  
+```html
+<li v-for="(item, index) in items">
+  {{ parentMessage }} - {{ index }} - {{ item.message }}
+</li>
+```
+
+
+```
+Parent - 0 - Foo
+Parent - 1 - Bar
+```
+
+El alcance de variable de v-for es similar al siguiente código JavaScript:
+
+```js
+const parentMessage = 'Parent'
+const items = [
+  /* ... */
+]
+
+items.forEach((item, index) => {
+  // tiene acceso al alcance externo `parentMessage`
+  // pero `item` y `index` solo están disponibles aquí
+  console.log(parentMessage, item.message, index)
+})
+```  
+
+Observa cómo el valor de v-for coincide con la firma de función del callback de forEach. De hecho, se puede utilizar la deconstrucción en el alias de elemento de v-for similar a la deconstrucción de los argumentos de función:
+
+```html
+<li v-for="{ message } in items">
+  {{ message }}
+</li>
+```
+
+con alias de índice:
+
+```html
+<li v-for="({ message }, index) in items">
+  {{ message }} {{ index }}
+</li>
+```
+
+
+Para v-for anidados, el alcance funciona de manera similar a las funciones anidadas. Cada alcance de v-for tiene acceso a los alcances superiores:
+
+```html
+<li v-for="item in items">
+  <span v-for="childItem in item.children">
+    {{ item.message }} {{ childItem }}
+  </span>
+</li>
+```
+
+También se puede usar "of" como delimitador en lugar de "in", de modo que se parezca más a la sintaxis de los iteradores de JavaScript:
+
+```html
+<div v-for="item of items"></div>
+```
+
+### v-for con un objeto
+También se puede usar v-for para iterar por las propiedades de un objeto. El orden de iteración se basará en el resultado de llamar a Object.keys() en el objeto:
+
+```js
+const myObject = reactive({
+  title: 'How to do lists in Vue',
+  author: 'Jane Doe',
+  publishedAt: '2016-04-10'
+})
+```
+
+```html
+<ul>
+  <li v-for="value in myObject">
+    {{ value }}
+  </li>
+</ul>
+```
+
+También se puede proporcionar un segundo alias para el nombre de la propiedad (es decir, la clave):
+
+```html
+<li v-for="(value, key) in myObject">
+  {{ key }}: {{ value }}
+</li>
+```
+
+
+Y otro para el índice:
+
+```html
+<li v-for="(value, key, index) in myObject">
+{{ index }}. {{ key }}: {{ value }}
+</li>
+```
+
+### v-for con un rango
+v-for también puede tomar un número entero. En este caso, repetirá la plantilla esa cantidad de veces, basándose en un rango de 1...n.
+
+```html
+<span v-for="n in 10">{{ n }}</span>
+Nota que aquí n comienza con un valor inicial de 1 en lugar de 0.
+```
+
+### v-for en <template>
+Similar a template v-if, también se puede usar una etiqueta <template> con v-for para renderizar un bloque de múltiples elementos. Por ejemplo:
+
+```html
+<ul>
+  <template v-for="item in items">
+    <li>{{ item.msg }}</li>
+    <li class="divider" role="presentation"></li>
+  </template>
+</ul>
+```
+
+#### v-for con v-if
+Nota: No se recomienda usar v-if y v-for en el mismo elemento debido a la precedencia implícita. Consulte la guía de estilo para obtener más detalles.
+
+Cuando existen en el mismo nodo, v-if tiene una prioridad mayor que v-for. Eso significa que la condición v-if no tendrá acceso a las variables del alcance de v-for:
+
+```html
+<!--
+Esto lanzará un error porque la propiedad "todo"
+no está definida en la instancia.
+-->
+<li v-for="todo in todos" v-if="!todo.isComplete">
+  {{ todo.name }}
+</li>
+```
+
+Esto se puede solucionar moviendo v-for a una etiqueta <template> contenedora (que también es más explícito):
+
+```html
+<template v-for="todo in todos">
+  <li v-if="!todo.isComplete">
+    {{ todo.name }}
+  </li>
+</template>
+```
+
+### Mantener el estado con la clave
+Cuando Vue está actualizando una lista de elementos renderizados con v-for, por defecto utiliza una estrategia de "parcheo en su lugar". Si el orden de los elementos de datos ha cambiado, en lugar de mover los elementos del DOM para que coincidan con el orden de los elementos, Vue parchea cada elemento en su lugar y se asegura de que refleje lo que debería ser renderizado en ese índice en particular.
+
+Este modo predeterminado es eficiente, pero solo es adecuado cuando la salida de renderizado de la lista no depende del estado de los componentes secundarios o del estado temporal del DOM (por ejemplo, los valores de entrada del formulario).
+
+Para darle a Vue una pista para que pueda realizar un seguimiento de la identidad de cada nodo y, por lo tanto, reutilizar y reordenar los elementos existentes, es necesario proporcionar un atributo clave único para cada elemento:
+
+```html
+<div v-for="item in items" :key="item.id">
+  <!-- contenido -->
+</div>
+```
+
+Cuando se utiliza <template v-for>, la clave debe colocarse en el contenedor <template>:
+
+```html
+<template v-for="todo in todos" :key="todo.name">
+  <li>{{ todo.name }}</li>
+</template>
+```
+Nota: la clave aquí es un atributo especial que se vincula con v-bind. No debe confundirse con la variable de propiedad clave al usar v-for con un objeto.
+
+Se recomienda proporcionar un atributo clave con v-for siempre que sea posible, a menos que el contenido DOM iterado sea simple (es decir, no contiene componentes ni elementos DOM con estado) o que esté intencionalmente confiando en el comportamiento predeterminado para obtener ganancias de rendimiento.
+
+La vinculación de claves espera valores primitivos, es decir, cadenas y números. No use objetos como claves de v-for. Para obtener información detallada sobre el uso del atributo clave, consulte la documentación de la API de clave.
+
+### v-for con un componente
+Esta sección asume conocimientos de Componentes. Siéntete libre de saltar y volver más tarde.
+
+Puedes usar directamente v-for en un componente, como cualquier elemento normal (no olvides proporcionar una clave):
+
+```html
+<MyComponent v-for="item in items" :key="item.id" />
+```
+
+Sin embargo, esto no pasará automáticamente ningún dato al componente, porque los componentes tienen ámbitos aislados propios. Para pasar los datos iterados al componente, también deberíamos usar props:
+
+```html
+<MyComponent
+  v-for="(item, index) in items"
+  :item="item"
+  :index="index"
+  :key="item.id"
+/>
+```
+
+La razón por la que no se inyecta automáticamente el item en el componente es porque eso hace que el componente esté estrechamente acoplado a cómo funciona v-for. Ser explícito acerca de dónde provienen sus datos hace que el componente sea reutilizable en otras situaciones.
+
+Echa un vistazo a este ejemplo de una lista de tareas simples para ver cómo renderizar una lista de componentes usando v-for, pasando diferentes datos a cada instancia.
+
+## Detección de cambios de matriz
+### Métodos de mutación
+Vue es capaz de detectar cuando se llaman a los métodos de mutación de una matriz reactiva y desencadenar las actualizaciones necesarias. Estos métodos de mutación son:
+
+push()
+pop()
+shift()
+unshift()
+splice()
+sort()
+reverse()
+  
+### Reemplazar una matriz
+Los métodos de mutación, como su nombre indica, mutan la matriz original en la que se llaman. En comparación, también hay métodos no mutantes, como filter(), concat() y slice(), que no mutan la matriz original, pero siempre devuelven una nueva matriz. Cuando se trabaja con métodos no mutantes, debemos reemplazar la matriz antigua por la nueva:
+
+```js
+// `items` es una ref con valor de array
+items.value = items.value.filter((item) => item.message.match(/Foo/))
+```
+
+Podrías pensar que esto hará que Vue descarte el DOM existente y vuelva a renderizar toda la lista; por suerte, ese no es el caso. Vue implementa algunas heurísticas inteligentes para maximizar la reutilización de elementos DOM, por lo que reemplazar una matriz por otra que contenga objetos superpuestos es una operación muy eficiente.
+
+## Mostrar resultados filtrados / ordenados
+A veces queremos mostrar una versión filtrada o ordenada de una matriz sin mutar o restablecer los datos originales. En este caso, puede crear una propiedad computada que devuelva la matriz filtrada o ordenada.
+
+Por ejemplo:
+
+```js
+const numbers = ref([1, 2, 3, 4, 5])
+
+const evenNumbers = computed(() => {
+  return numbers.value.filter((n) => n % 2 === 0)
+})
+```
+
+```html
+<li v-for="n in evenNumbers">{{ n }}</li>
+```
+
+En situaciones donde las propiedades computadas no son factibles (por ejemplo, dentro de bucles v-for anidados), se puede usar un método:
+
+```js
+const sets = ref([
+  [1, 2, 3, 4, 5],
+  [6, 7, 8, 9, 10]
+])
+
+function even(numbers) {
+  return numbers.filter((number) => number % 2 === 0)
+}
+```
+  
+```html
+<ul v-for="numbers in sets">
+  <li v-for="n in even(numbers)">{{ n }}</li>
+</ul>
+```
+
+¡Ten cuidado con reverse() y sort() en una propiedad computada! Estos dos métodos mutarán la matriz original, lo que debe evitarse en los getters computados. Cree una copia de la matriz original antes de llamar a estos métodos:
+
+diff
+- return numbers.reverse()
++ return [...numbers].reverse()
+
