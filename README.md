@@ -1179,3 +1179,274 @@ diff
 - return numbers.reverse()
 + return [...numbers].reverse()
 
+# Escuchando Eventos
+Podemos usar la directiva v-on, que normalmente acortamos con el símbolo @, para escuchar eventos del DOM y ejecutar algún código JavaScript cuando se activan. El uso sería v-on:click="handler" o con el atajo @click="handler".
+
+El valor del handler puede ser uno de los siguientes:
+
+1)Manejadores en línea: JavaScript en línea que se ejecuta cuando se activa el evento (similar al atributo onclick nativo).
+
+)Manejadores de método: Un nombre de propiedad o ruta que apunta a un método definido en el componente.
+
+## Manejadores en línea
+Los manejadores en línea se usan típicamente en casos simples, por ejemplo:
+
+```js
+const count = ref(0)
+
+<template>
+  <button @click="count++">Agregar 1</button>
+  <p>El contador es: {{ count }}</p>
+</template>
+```
+
+## Manejadores de método
+La lógica para muchos manejadores de eventos será más compleja, y probablemente no sea factible con manejadores en línea. Es por eso que v-on también puede aceptar el nombre o la ruta de un método del componente que desea llamar.
+
+Por ejemplo:
+
+```vue
+const name = ref('Vue.js')
+
+function greet(event) {
+  alert(`Hola ${name.value}!`)
+  // `event` es el evento nativo del DOM
+  if (event) {
+    alert(event.target.tagName)
+  }
+}
+
+<template>
+  <!-- `greet` es el nombre del método definido arriba -->
+  <button @click="greet">Saludar</button>
+</template>
+```
+
+Un manejador de método recibe automáticamente el objeto Event nativo del DOM que lo activa, en el ejemplo anterior, podemos acceder al elemento que dispara el evento a través de event.target.tagName.
+
+
+## Detección de método frente a en línea
+El compilador de plantillas detecta los manejadores de método verificando si la cadena de valor de v-on es un identificador de JavaScript válido o una ruta de acceso a propiedad. Por ejemplo, foo, foo.bar y foo['bar'] se tratan como manejadores de método, mientras que foo() y count++ se tratan como manejadores en línea.
+
+Llamando métodos en manejadores en línea
+En lugar de vincular directamente a un nombre de método, también podemos llamar métodos en un manejador en línea. Esto nos permite pasar argumentos personalizados al método en lugar del evento nativo:
+
+```vue
+Copy code
+function say(message) {
+  alert(message)
+}
+
+<template>
+  <button @click="say('hola')">Decir hola</button>
+  <button @click="say('adiós')">Decir adiós</button>
+</template>
+```
+
+## Acceder al argumento del evento en manejadores en línea
+A veces también necesitamos acceder al evento DOM original en un manejador en línea. Puedes pasarla a un método usando la variable especial $event, o usar una función flecha en línea:
+
+```vue
+function warn(message, event) {
+  // ahora tenemos acceso al evento nativo
+  if (event) {
+    event.preventDefault()
+  }
+  alert(message)
+}
+
+<template>
+  <!-- usando la variable especial `$event` -->
+  <button @click="warn('El formulario aún no se puede enviar.', $event)">
+    Enviar
+  </button>
+
+  <!-- usando una función flecha en línea -->
+<button @click="(event) => warn('El formulario aún no se puede enviar.', event)">
+Enviar
+</button>
+</template>
+```
+
+## Modificadores de eventos
+
+Es muy común necesitar llamar a `event.preventDefault()` o `event.stopPropagation()` dentro de los manejadores de eventos. Aunque podemos hacer esto fácilmente dentro de los métodos, sería mejor si los métodos pudieran ser puramente sobre la lógica de los datos en lugar de tener que lidiar con los detalles del evento del DOM.
+
+Para abordar este problema, Vue proporciona modificadores de eventos para `v-on`. Recordemos que los modificadores son sufijos de directiva indicados por un punto.
+
+`.stop`
+`.prevent`
+`.self`
+`.capture`
+`.once`
+`.passive`
+
+```html
+<template>
+  <!-- la propagación del evento de clic se detendrá -->
+  <a @click.stop="hacerEsto"></a>
+
+  <!-- el envío del formulario ya no recargará la página -->
+  <form @submit.prevent="onSubmit"></form>
+
+  <!-- los modificadores se pueden concatenar -->
+  <a @click.stop.prevent="hacerEso"></a>
+
+  <!-- solo el modificador -->
+  <form @submit.prevent></form>
+
+  <!-- solo activa el manejador si event.target es el propio elemento -->
+  <!-- es decir, no proviene de un elemento secundario -->
+  <div @click.self="hacerEso">...</div>
+</template>
+```
+** TIP
+
+El orden importa al usar modificadores porque el código relevante se genera en el mismo orden. Por lo tanto, usar @click.prevent.self evitará la acción predeterminada de clic en el propio elemento y sus hijos, mientras que @click.self.prevent solo evitará la acción predeterminada de clic en el propio elemento.
+
+Los modificadores .capture, .once y .passive reflejan las opciones del método addEventListener nativo:
+
+```html
+<template>
+  <!-- use el modo de captura al agregar el escuchador de eventos -->
+  <!-- es decir, un evento dirigido a un elemento interno se maneja aquí antes de ser manejado por ese elemento -->
+  <div @click.capture="hacerEsto">...</div>
+
+  <!-- el evento de clic se activará como máximo una vez -->
+  <a @click.once="hacerEsto"></a>
+
+  <!-- el comportamiento predeterminado del evento de desplazamiento (desplazamiento) sucederá -->
+  <!-- inmediatamente, en lugar de esperar a que `onScroll` se complete -->
+  <!-- en caso de que contenga `event.preventDefault ()` -->
+  <div @scroll.passive="onScroll">...</div>
+</template>
+El modificador .passive se usa típicamente con los escuchadores de eventos táctiles para mejorar el rendimiento en dispositivos móviles.
+```
+
+** TIP
+
+No uses .passive y .prevent juntos, porque .passive ya indica al navegador que no tienes la intención de evitar el comportamiento predeterminado del evento, y es probable que veas una advertencia del navegador si lo haces.
+
+##Modificadores de teclas
+Al escuchar eventos de teclado, a menudo necesitamos verificar teclas específicas. Vue permite agregar modificadores de teclas para v-on o @ al escuchar eventos de teclado:
+
+```html
+<template>
+  <!-- solo llamar a `submit` cuando la tecla es `Enter` -->
+  <input @keyup.enter="submit" />
+</template>
+```
+
+Puedes usar directamente cualquier nombre de tecla válido expuesto a través de KeyboardEvent.key como modificadores convirtiéndolos a kebab-case.
+
+```html
+Copy code
+<template>
+  <input @keyup.page-down="onPageDown" />
+</template>
+```
+En el ejemplo anterior, el manejador solo se llamará si $event.key es igual a 'PageDown'.
+
+## Alias de teclas
+Vue proporciona alias para las teclas más comúnmente utilizadas:
+
+.enter
+.tab
+.delete (captura tanto las teclas "Eliminar" como "Retroceso")
+.esc
+.space
+.up
+.down
+.left
+.right
+
+## Teclas de modificador del sistema
+Puedes usar los siguientes modificadores para activar escuchadores de eventos de ratón o teclado solo cuando se presiona el modificador de tecla correspondiente:
+
+.ctrl
+.alt
+.shift
+.meta
+
+** Nota
+
+En los teclados de Macintosh, meta es la tecla de comando (⌘). En los teclados de Windows, meta es la tecla de Windows (⊞). En los teclados de Sun Microsystems, meta está marcada como un diamante sólido (◆). En ciertos teclados, específicamente en los teclados de MIT y Lisp machine y sus sucesores, como el teclado Knight, el teclado space-cadet, meta está etiquetada como "META". En los teclados de Symbolics, meta está etiquetada como "META" o "Meta".
+
+Por ejemplo:
+
+```html
+Copy code
+<template>
+  <!-- Alt + Enter -->
+  <input @keyup.alt.enter="clear" />
+
+  <!-- Ctrl + clic -->
+  <div @click.ctrl="hacerAlgo">Hacer algo</div>
+</template>
+```
+
+** TIP
+
+Ten en cuenta que las teclas de modificador son diferentes de las teclas normales y cuando se usan con eventos keyup, deben presionarse cuando se emite el evento. En otras palabras, keyup.ctrl solo se activará si sueltas una tecla mientras mantienes presionado ctrl. No se activará si sueltas la tecla ctrl sola.
+
+## Modificador .exact
+El modificador .exact permite controlar la combinación exacta de modificadores del sistema necesarios para activar un evento.
+
+```html
+<template>
+  <!-- esto se activará incluso si Alt o Shift también están presionados -->
+  <button @click.ctrl="onClick">A</button>
+
+  <!-- esto solo se activará cuando Ctrl y no se presionen otras teclas -->
+  <button @click.ctrl.exact="onCtrlClick">A</button>
+
+  <!-- esto solo se activará cuando no se presionen modificadores del sistema -->
+  <button @click.exact="onClick">A</button>
+</template>
+```
+
+## Modificadores de botones de mouse
+.left
+.right
+.middle
+
+Estos modificadores restringen el manejador a eventos activados por un botón de mouse específico.
+  
+# Lifecycle Hooks
+Cada instancia de componente de Vue pasa por una serie de pasos de inicialización cuando se crea, por ejemplo, necesita configurar la observación de datos, compilar la plantilla, montar la instancia en el DOM y actualizar el DOM cuando cambian los datos. En el camino, también ejecuta funciones llamadas ganchos de ciclo de vida, lo que brinda a los usuarios la oportunidad de agregar su propio código en etapas específicas.
+
+## Registro de ganchos de ciclo de vida
+
+Por ejemplo, el gancho onMounted se puede utilizar para ejecutar código después de que el componente haya terminado el renderizado inicial y creado los nodos del DOM:
+
+```vue
+<script setup>
+import { onMounted } from 'vue'
+
+onMounted(() => {
+  console.log(`El componente ahora está montado.`)
+})
+</script>
+```
+
+
+También hay otros ganchos que se llamarán en diferentes etapas del ciclo de vida de la instancia, siendo los más utilizados onMounted, onUpdated y onUnmounted. Al llamar a onMounted, Vue asocia automáticamente la función de devolución de llamada registrada con la instancia de componente activa actual. Esto requiere que estos ganchos se registren de manera sincrónica durante la configuración del componente. Por ejemplo, no haga esto:
+
+```js
+Copy code
+setTimeout(() => {
+  onMounted(() => {
+    // esto no funcionará.
+  })
+}, 100)
+```
+
+Ten en cuenta que esto no significa que la llamada deba colocarse léxicamente dentro de setup() o <script setup>. onMounted() se puede llamar en una función externa siempre que la pila de llamadas sea síncrona y se origine desde dentro de setup().
+
+## Diagrama del ciclo de vida
+
+A continuación se muestra un diagrama del ciclo de vida de la instancia. No es necesario que entienda todo lo que está sucediendo en este momento, pero a medida que aprenda y construya más, será una referencia útil.
+
+![Ciclo de vida](https://i.imgur.com/XLvznbh.png)
+  
+  
