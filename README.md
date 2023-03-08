@@ -382,19 +382,19 @@ También significa que cuando asignemos o desestructuremos una propiedad de un o
 ```js
 const state = reactive({ count: 0 })
 
-// n is a local variable that is disconnected
+// n es una variable local desconectada
 // from state.count.
 let n = state.count
 // does not affect original state
 n++
 
-// count is also disconnected from state.count.
+// count también está desconectado de state.count.
 let { count } = state
-// does not affect original state
+// no afecta al estado original
 count++
 
-// the function receives a plain number and
-// won't be able to track changes to state.count
+// la función recibe un número plano y
+// no podrá seguir los cambios en state.count
 callSomeFunction(state.count)
 ```  
 
@@ -542,3 +542,116 @@ const map = reactive(new Map([['count', ref(0)]]))
 necesita .value aquí
 console.log(map.get('count').value)
 ```
+
+# Propiedades computadas (calculadas) Computed Properties
+
+Las expresiones en las plantillas son muy convenientes, pero están destinadas a operaciones simples. Colocar demasiada lógica en las plantillas puede hacerlas voluminosas y difíciles de mantener. Por ejemplo, si tenemos un objeto con una matriz anidada:
+
+```js
+const author = reactive({
+  name: 'John Doe',
+  books: [
+    'Vue 2 - Guía avanzada',
+    'Vue 3 - Guía básica',
+    'Vue 4 - El misterio'
+  ]
+})
+```
+  
+Y queremos mostrar diferentes mensajes según si el autor ya tiene algunos libros o no:
+
+```html
+<p>Tiene libros publicados:</p>
+<span>{{ author.books.length > 0 ? 'Sí' : 'No' }}</span>
+```
+
+En este punto, la plantilla se está volviendo un poco desordenada. Tenemos que mirarla durante un segundo antes de darnos cuenta de que realiza un cálculo según author.books. Más importante aún, probablemente no queremos repetirnos si necesitamos incluir este cálculo en la plantilla más de una vez.
+
+Es por eso que para la lógica compleja que incluye datos reactivos, se recomienda utilizar una propiedad computada. Aquí está el mismo ejemplo, refactorizado:
+
+```vue
+<script setup>
+import { reactive, computed } from 'vue'
+
+const author = reactive({
+  name: 'John Doe',
+  books: [
+    'Vue 2 - Guía avanzada',
+    'Vue 3 - Guía básica',
+    'Vue 4 - El misterio'
+  ]
+})
+
+// una referencia calculada
+const publishedBooksMessage = computed(() => {
+  return author.books.length > 0 ? 'Sí' : 'No'
+})
+</script>
+
+<template>
+  <p>Tiene libros publicados:</p>
+  <span>{{ publishedBooksMessage }}</span>
+</template>
+```
+
+Aquí hemos declarado una propiedad calculada publishedBooksMessage. La función computed() espera recibir una función getter, y el valor devuelto es una referencia calculada. Al igual que las referencias normales, puede acceder al resultado calculado como publishedBooksMessage.value. Las referencias calculadas también se desempaquetan automáticamente en las plantillas, por lo que puede hacer referencia a ellas sin .value en las expresiones de la plantilla.
+
+Una propiedad calculada hace un seguimiento automático de sus dependencias reactivas. Vue es consciente de que el cálculo de publishedBooksMessage depende de author.books, por lo que actualizará cualquier enlace que dependa de publishedBooksMessage cuando author.books cambie.
+
+## Caché de propiedades calculadas frente a métodos
+Es posible que haya notado que podemos lograr el mismo resultado invocando un método en la expresión:
+
+```html
+<p>{{ calculateBooksMessage() }}</p>
+```
+  
+```js
+// en el componente
+function calculateBooksMessage() {
+  return author.books.length > 0 ? 'Sí' : 'No'
+}
+```
+
+En lugar de una propiedad calculada, podemos definir la misma función como un método. Para el resultado final, los dos enfoques son exactamente iguales. Sin embargo, la diferencia es que las propiedades calculadas se almacenan en caché en función de sus dependencias reactivas. Una propiedad calculada solo se volverá a evaluar cuando alguna de sus dependencias reactivas haya cambiado. Esto significa que mientras author.books no haya cambiado, múltiples accesos a publishedBooksMessage devolverán inmediatamente el resultado calculado previamente sin tener que ejecutar la función getter de nuevo.
+
+Esto también significa que la siguiente propiedad calculada nunca se actualizará, porque Date.now() no es una dependencia reactiva:
+
+```js
+const now = computed(() => Date.now())
+```
+
+En comparación, una llamada a método siempre ejecutará la función cada vez que se produzca un nuevo renderizado.
+
+¿Por qué necesitamos caché? Imagina que tenemos una propiedad calculada costosa llamada list, que requiere recorrer una matriz enorme y hacer muchos cálculos. Luego podemos tener otras propiedades calculadas que, a su vez, dependen de list. ¡Sin caché, estaríamos ejecutando el getter de list muchas más veces de lo necesario! En casos en los que no se desee caché, utiliza una llamada a método en su lugar.
+
+### Propiedades calculadas editables
+Las propiedades calculadas son por defecto de solo lectura. Si intentas asignar un nuevo valor a una propiedad calculada, recibirás una advertencia en tiempo de ejecución. En los casos raros en los que necesitas una propiedad calculada "editable", puedes crear una proporcionando tanto un getter como un setter:
+
+```vue
+<script setup>
+import { ref, computed } from 'vue'
+
+const firstName = ref('John')
+const lastName = ref('Doe')
+
+const fullName = computed({
+  // getter
+  get() {
+    return firstName.value + ' ' + lastName.value
+  },
+  // setter
+  set(newValue) {
+    // Nota: estamos usando la sintaxis de asignación por destructuración aquí.
+    [firstName.value, lastName.value] = newValue.split(' ')
+  }
+})
+</script>
+```
+
+Ahora, cuando se ejecuta fullName.value = 'John Doe', se invocará el setter y firstName y lastName se actualizarán en consecuencia.
+
+### Buenas prácticas
+
+Los getter deben ser libres de efectos secundarios. Es importante recordar que las funciones getter de las propiedades calculadas deben realizar solo cálculos puros y estar libres de efectos secundarios. Por ejemplo, ¡no realices solicitudes asincrónicas o mutaciones en el DOM dentro de un getter de una propiedad calculada! Piensa en una propiedad calculada como describir declarativamente cómo derivar un valor basado en otros valores; su única responsabilidad debe ser calcular y devolver ese valor. Más adelante en la guía, discutiremos cómo podemos realizar efectos secundarios en respuesta a los cambios de estado con los watchers.
+
+Evita mutar el valor devuelto por una propiedad calculada. El valor devuelto por una propiedad calculada es un estado derivado. Piensa en él como una instantánea temporal: cada vez que cambia el estado de origen, se crea una nueva instantánea. No tiene sentido mutar una instantánea, por lo que el valor devuelto por una propiedad calculada debe tratarse como de solo lectura y nunca debe mutarse; en su lugar, actualiza el estado de origen en el que depende para desencadenar nuevas operaciones de cálculo.
