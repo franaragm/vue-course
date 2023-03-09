@@ -1025,13 +1025,14 @@ v-for también puede tomar un número entero. En este caso, repetirá la plantil
 
 ```html
 <span v-for="n in 10">{{ n }}</span>
-Nota que aquí n comienza con un valor inicial de 1 en lugar de 0.
 ```
+  
+Nota que aquí n comienza con un valor inicial de 1 en lugar de 0.
 
 ### v-for en <template>
 Similar a template v-if, también se puede usar una etiqueta <template> con v-for para renderizar un bloque de múltiples elementos. Por ejemplo:
 
-```html
+```vue
 <ul>
   <template v-for="item in items">
     <li>{{ item.msg }}</li>
@@ -1045,7 +1046,7 @@ Nota: No se recomienda usar v-if y v-for en el mismo elemento debido a la preced
 
 Cuando existen en el mismo nodo, v-if tiene una prioridad mayor que v-for. Eso significa que la condición v-if no tendrá acceso a las variables del alcance de v-for:
 
-```html
+```vue
 <!--
 Esto lanzará un error porque la propiedad "todo"
 no está definida en la instancia.
@@ -1057,7 +1058,7 @@ no está definida en la instancia.
 
 Esto se puede solucionar moviendo v-for a una etiqueta <template> contenedora (que también es más explícito):
 
-```html
+```vue
 <template v-for="todo in todos">
   <li v-if="!todo.isComplete">
     {{ todo.name }}
@@ -1072,7 +1073,7 @@ Este modo predeterminado es eficiente, pero solo es adecuado cuando la salida de
 
 Para darle a Vue una pista para que pueda realizar un seguimiento de la identidad de cada nodo y, por lo tanto, reutilizar y reordenar los elementos existentes, es necesario proporcionar un atributo clave único para cada elemento:
 
-```html
+```vue
 <div v-for="item in items" :key="item.id">
   <!-- contenido -->
 </div>
@@ -1080,7 +1081,7 @@ Para darle a Vue una pista para que pueda realizar un seguimiento de la identida
 
 Cuando se utiliza <template v-for>, la clave debe colocarse en el contenedor <template>:
 
-```html
+```vue
 <template v-for="todo in todos" :key="todo.name">
   <li>{{ todo.name }}</li>
 </template>
@@ -1096,13 +1097,13 @@ Esta sección asume conocimientos de Componentes. Siéntete libre de saltar y vo
 
 Puedes usar directamente v-for en un componente, como cualquier elemento normal (no olvides proporcionar una clave):
 
-```html
+```vue
 <MyComponent v-for="item in items" :key="item.id" />
 ```
 
 Sin embargo, esto no pasará automáticamente ningún dato al componente, porque los componentes tienen ámbitos aislados propios. Para pasar los datos iterados al componente, también deberíamos usar props:
 
-```html
+```vue
 <MyComponent
   v-for="(item, index) in items"
   :item="item"
@@ -1150,7 +1151,7 @@ const evenNumbers = computed(() => {
 })
 ```
 
-```html
+```vue
 <li v-for="n in evenNumbers">{{ n }}</li>
 ```
 
@@ -1167,7 +1168,7 @@ function even(numbers) {
 }
 ```
   
-```html
+```vue
 <ul v-for="numbers in sets">
   <li v-for="n in even(numbers)">{{ n }}</li>
 </ul>
@@ -1232,7 +1233,6 @@ Llamando métodos en manejadores en línea
 En lugar de vincular directamente a un nombre de método, también podemos llamar métodos en un manejador en línea. Esto nos permite pasar argumentos personalizados al método en lugar del evento nativo:
 
 ```vue
-Copy code
 function say(message) {
   alert(message)
 }
@@ -1340,7 +1340,6 @@ Al escuchar eventos de teclado, a menudo necesitamos verificar teclas específic
 Puedes usar directamente cualquier nombre de tecla válido expuesto a través de KeyboardEvent.key como modificadores convirtiéndolos a kebab-case.
 
 ```html
-Copy code
 <template>
   <input @keyup.page-down="onPageDown" />
 </template>
@@ -1374,8 +1373,7 @@ En los teclados de Macintosh, meta es la tecla de comando (⌘). En los teclados
 
 Por ejemplo:
 
-```html
-Copy code
+```vue
 <template>
   <!-- Alt + Enter -->
   <input @keyup.alt.enter="clear" />
@@ -1415,7 +1413,7 @@ Estos modificadores restringen el manejador a eventos activados por un botón de
 # Lifecycle Hooks
 Cada instancia de componente de Vue pasa por una serie de pasos de inicialización cuando se crea, por ejemplo, necesita configurar la observación de datos, compilar la plantilla, montar la instancia en el DOM y actualizar el DOM cuando cambian los datos. En el camino, también ejecuta funciones llamadas ganchos de ciclo de vida, lo que brinda a los usuarios la oportunidad de agregar su propio código en etapas específicas.
 
-## Registro de ganchos de ciclo de vida
+## Registro de los lifecycle hooks
 
 Por ejemplo, el gancho onMounted se puede utilizar para ejecutar código después de que el componente haya terminado el renderizado inicial y creado los nodos del DOM:
 
@@ -1433,7 +1431,6 @@ onMounted(() => {
 También hay otros ganchos que se llamarán en diferentes etapas del ciclo de vida de la instancia, siendo los más utilizados onMounted, onUpdated y onUnmounted. Al llamar a onMounted, Vue asocia automáticamente la función de devolución de llamada registrada con la instancia de componente activa actual. Esto requiere que estos ganchos se registren de manera sincrónica durante la configuración del componente. Por ejemplo, no haga esto:
 
 ```js
-Copy code
 setTimeout(() => {
   onMounted(() => {
     // esto no funcionará.
